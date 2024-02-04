@@ -1,9 +1,5 @@
 use crate::traits::HasLength;
 
-/// Validates whether the value contains the needle
-/// The value needs to implement the Contains trait, which is implement on String, str and Hashmap<String>
-/// by default.
-
 #[allow(dead_code)]
 #[must_use]
 pub fn validate_max_length<T: HasLength>(val: &T, needle: u32) -> bool {
@@ -12,14 +8,13 @@ pub fn validate_max_length<T: HasLength>(val: &T, needle: u32) -> bool {
 
 #[cfg(test)]
 mod tests {
-    // use std::borrow::Cow;
-    // use std::collections::HashMap;
+    use crate::validation::max_length::validate_max_length;
 
-    // use super::*;
-
-    // #[test]
-    // fn test_validate_min() {
-    //     assert!(validate_min(32, 20));
-    // }
-
+    
+    #[test]
+    fn test_validate_max() {
+        assert!(validate_max_length(&"hello", 10));
+        assert!(validate_max_length(&"hello", 5));
+        assert!(!validate_max_length(&"hello", 4));
+    }
 }

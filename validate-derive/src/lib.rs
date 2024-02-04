@@ -1,8 +1,7 @@
 use proc_macro::TokenStream;
 use proc_macro_error::{abort, proc_macro_error};
 use quote::quote;
-use syn::{spanned::Spanned, DeriveInput, LitInt};
-// use validator_rs::FieldValidaion;
+use syn::{spanned::Spanned, DeriveInput, Lit, LitInt, LitStr};
 
 #[proc_macro_derive(Validate, attributes(validate, field_validate))]
 #[proc_macro_error]
@@ -13,15 +12,8 @@ pub fn validate_derive_macro(input: TokenStream) -> TokenStream {
     impl_validation(&ast)
 }
 
-#[derive(Debug)]
-struct FieldInfo {
-    ident: syn::Ident,
-    name: String,
-    validators: Vec<String>,
-}
 
 fn pretty_print_quote(ts: &proc_macro2::TokenStream) {
-    println!("printing in progress....");
     match syn::parse_file(ts.to_string().as_str()) {
         Ok(val) => {
             println!("{}", prettyplease::unparse(&val))
@@ -45,6 +37,8 @@ fn impl_validation(ast: &DeriveInput) -> TokenStream {
                 use ::validator_rs::ValidationError;
                 use ::validator_rs::validation::min_length::validate_min_length;
                 use ::validator_rs::validation::max_length::validate_max_length;
+                use ::validator_rs::validation::email::validate_email;
+                use ::validator_rs::validation::contains::validate_contains;
 
                 let mut errors: Vec<ValidationError> = vec![];
 
@@ -68,57 +62,119 @@ fn collect_field_quotes(field: &syn::Field) -> Vec<proc_macro2::TokenStream> {
     let mut quotes: Vec<proc_macro2::TokenStream> = vec![];
     let ident = field.ident.clone().unwrap();
     let field_name = field.ident.clone().unwrap().to_string();
+    
 
     for attr in field.attrs.iter() {
         if attr.path().is_ident("validate") {
             let _ = attr.parse_nested_meta(|meta| {
-                // TODO: validate value type in each attribute
-                // for e.g. min_length should only support positive integer type
+                // TODO: validate attribute value type and input value type in each attribute
+                // for e.g. min_length should only support positive integer type in attribute value
+                // also min_length should be used with String and list types 
+                
 
+                // TODO: add support for following cases
+                // ip
+                // must match
+                // regex
+                // url
                 if meta.path.is_ident("min_length") {
-                    let value = meta.value()?;
-
-                    let s: LitInt = value.parse()?;
+                    let value = extract_lit_int(&meta)?;
 
                     let ts = quote!(
-                        if !validate_min_length(&self.#ident, #s) {
-                            println!("value is not min");
+                        if !validate_min_length(&self.#ident, #value) {
                             errors.push(ValidationError::new(#field_name.to_string(), "value is not min".to_string()));
                         }
                     );
-
-                    // pretty_print_quote(&ts);
                     quotes.push(ts);
+
                 } else if meta.path.is_ident("max_length") {
-                    let value = meta.value()?;
-                    let s: LitInt = value.parse()?;
+                    let value = extract_lit_int(&meta)?;
 
                     let ts = quote!(
-                        if !validate_max_length(&self.#ident, #s) {
-                            println!("value is not max");
+                        if !validate_max_length(&self.#ident, #value) {
                             errors.push(ValidationError::new(#field_name.to_string(), "value is not max".to_string()));
                         }
                     );
                     quotes.push(ts);
+
                 } else if meta.path.is_ident("email") {
                     let ts = quote!(
-                        if !validate_email(self.#ident) {
-                            println!("value is not valid email");
+                        if !validate_email(self.#ident.as_str()) {
+                            errors.push(ValidationError::new(#field_name.to_string(), "value is not email".to_string()));
                         }
                     );
 
                     quotes.push(ts);
+                } else if meta.path.is_ident("contains") {
+                    let value = extract_lit_str(&meta)?;
+                    let ts = quote!(
+                        if !validate_contains(self.#ident.as_str(), #value) {
+                            errors.push(ValidationError::new(#field_name.to_string(), "value does not contain".to_string()));
+                        }
+                    );
+
+                    quotes.push(ts);
+                } else if meta.path.is_ident("does_not_contain") {
+                    let value = extract_lit_str(&meta)?;
+                    let ts = quote!(
+                        if validate_contains(self.#ident.as_str(), #value) {
+                            errors.push(ValidationError::new(#field_name.to_string(), "value contains".to_string()));
+                        }
+                    );
+
+                    quotes.push(ts);
+                } else {
+                    abort!(meta.path.span(), "Unsuported attribute. Supported attributes are contains, does_not_contain, min_length, max_length & email")
                 }
 
                 Ok(())
             });
-        } else {
-            abort!(field.span(), "unsuported attribute")
         }
     }
 
     quotes
 }
+
+fn extract_lit_int(meta: &syn::meta::ParseNestedMeta<'_>) -> Result<LitInt, syn::Error> {
+    let expr: Lit = match meta.value()?.parse() {
+        Ok(val) => {val},
+        Err(_) => {
+                abort!(meta.path.span(), "should provide some integer value")
+        },
+    };
+    let s = match expr {
+        Lit::Int(ref int_value) => {{
+            println!("integer value: {:?}", expr);
+            int_value
+        }},
+
+        _ => {
+            abort!(expr.span(), "only integer type supported")
+        }
+    };
+    Ok(s.clone())
+}
+
+fn extract_lit_str(meta: &syn::meta::ParseNestedMeta<'_>) -> Result<LitStr, syn::Error> {
+    let expr: Lit = match meta.value()?.parse() {
+        Ok(val) => {val},
+        Err(_) => {
+                abort!(meta.path.span(), "should provide some string value")
+        },
+    };
+    let s = match expr {
+        Lit::Str(ref str_value) => {{
+            str_value
+        }},
+
+        _ => {
+            abort!(expr.span(), "only integer type supported")
+        }
+    };
+    Ok(s.clone())
+}
+
+
 
 fn build_validations(fields: &Vec<syn::Field>) -> Vec<proc_macro2::TokenStream> {
     let mut result = vec![];

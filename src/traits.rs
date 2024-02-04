@@ -31,6 +31,12 @@ impl Contains for str {
     }
 }
 
+impl Contains for &str {
+    fn has_element(&self, value: &str) -> bool {
+        self.contains(value)
+    }
+}
+
 impl HasLength for String {
     fn length(&self) -> u32 {
         self.len() as u32
@@ -38,6 +44,12 @@ impl HasLength for String {
 }
 
 impl HasLength for str {
+    fn length(&self) -> u32 {
+        self.len() as u32
+    }
+}
+
+impl HasLength for &str {
     fn length(&self) -> u32 {
         self.len() as u32
     }
