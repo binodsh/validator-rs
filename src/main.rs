@@ -9,6 +9,12 @@ struct User {
     // #[validate(email)]
     email: String,
 
+    #[validate(min = 10)]
+    age: u32,
+
+    #[validate(min = 150.0)]
+    height: f32,
+
     address: Option<String>,
 }
 
@@ -18,6 +24,8 @@ impl User {
             name: "hakuufjhelloaldsjflajsldfjalsd".to_string(),
             address: Some("fjalskdjflasjd".to_string()),
             email: "a@b.com".to_string(),
+            age: 9,
+            height: 140.0,
         }
     }
 }

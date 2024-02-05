@@ -10,7 +10,6 @@ pub fn validate_max_length<T: HasLength>(val: &T, needle: u32) -> bool {
 mod tests {
     use crate::validation::max_length::validate_max_length;
 
-    
     #[test]
     fn test_validate_max() {
         assert!(validate_max_length(&"hello", 10));

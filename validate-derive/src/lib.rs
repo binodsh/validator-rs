@@ -1,7 +1,7 @@
 use proc_macro::TokenStream;
 use proc_macro_error::{abort, proc_macro_error};
 use quote::quote;
-use syn::{spanned::Spanned, DeriveInput, Lit, LitInt, LitStr};
+use syn::{spanned::Spanned, DeriveInput, Lit, LitFloat, LitInt, LitStr};
 
 #[proc_macro_derive(Validate, attributes(validate, field_validate))]
 #[proc_macro_error]
@@ -39,6 +39,9 @@ fn impl_validation(ast: &DeriveInput) -> TokenStream {
                 use ::validator_rs::validation::max_length::validate_max_length;
                 use ::validator_rs::validation::email::validate_email;
                 use ::validator_rs::validation::contains::validate_contains;
+                use ::validator_rs::validation::min::validate_min;
+                use ::validator_rs::validation::max::validate_max;
+
 
                 let mut errors: Vec<ValidationError> = vec![];
 
@@ -73,11 +76,32 @@ fn collect_field_quotes(field: &syn::Field) -> Vec<proc_macro2::TokenStream> {
                 
 
                 // TODO: add support for following cases
+                // min and max value for integer and floating point numbers
                 // ip
                 // must match
                 // regex
                 // url
-                if meta.path.is_ident("min_length") {
+                if meta.path.is_ident("min") {
+                    let value = extract_lit_float(&meta)?;
+
+                    let ts = quote!(
+                        if !validate_min(self.#ident, #value) {
+                            errors.push(ValidationError::new(#field_name.to_string(), "value is not min".to_string()));
+                        }
+                    );
+                    quotes.push(ts);
+
+                } else if meta.path.is_ident("max") {
+                    let value = extract_lit_float(&meta)?;
+
+                    let ts = quote!(
+                        if !validate_max(self.#ident, #value) {
+                            errors.push(ValidationError::new(#field_name.to_string(), "value is not max".to_string()));
+                        }
+                    );
+                    quotes.push(ts);
+
+                } else if meta.path.is_ident("min_length") {
                     let value = extract_lit_int(&meta)?;
 
                     let ts = quote!(
@@ -150,6 +174,29 @@ fn extract_lit_int(meta: &syn::meta::ParseNestedMeta<'_>) -> Result<LitInt, syn:
 
         _ => {
             abort!(expr.span(), "only integer type supported")
+        }
+    };
+    Ok(s.clone())
+}
+
+fn extract_lit_float(meta: &syn::meta::ParseNestedMeta<'_>) -> Result<LitFloat, syn::Error> {
+    let expr: Lit = match meta.value()?.parse() {
+        Ok(val) => {val},
+        Err(_) => {
+                abort!(meta.path.span(), "should provide some numeric value")
+        },
+    };
+
+    let s = match expr {
+        Lit::Int(int_value) => {
+            LitFloat::from(int_value.token())
+        },
+        Lit::Float(float_value) => {{
+            float_value
+        }},
+
+        _ => {
+            abort!(expr.span(), "only numeric type supported")
         }
     };
     Ok(s.clone())
