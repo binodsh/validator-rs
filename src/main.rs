@@ -6,7 +6,7 @@ struct User {
     #[validate(min_length = 1, max_length = 50, does_not_contain = "hello")]
     name: String,
 
-    // #[validate(email)]
+    #[validate(email)]
     email: String,
 
     #[validate(min = 10)]
@@ -16,16 +16,20 @@ struct User {
     height: f32,
 
     address: Option<String>,
+
+    #[validate(ipv4)]
+    ip: String
 }
 
 impl User {
     fn new() -> Self {
         Self {
-            name: "hakuufjhelloaldsjflajsldfjalsd".to_string(),
+            name: "hakuufjhellaldsjflajsldfjalsd".to_string(),
             address: Some("fjalskdjflasjd".to_string()),
             email: "a@b.com".to_string(),
-            age: 9,
-            height: 140.0,
+            age: 11,
+            height: 170.0,
+            ip: "10.0.0.1".to_string()
         }
     }
 }

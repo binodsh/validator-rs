@@ -41,6 +41,10 @@ fn impl_validation(ast: &DeriveInput) -> TokenStream {
                 use ::validator_rs::validation::contains::validate_contains;
                 use ::validator_rs::validation::min::validate_min;
                 use ::validator_rs::validation::max::validate_max;
+                use ::validator_rs::validation::ip::validate_ip;
+                use ::validator_rs::validation::ip::validate_ip_v4;
+                use ::validator_rs::validation::ip::validate_ip_v6;
+
 
 
                 let mut errors: Vec<ValidationError> = vec![];
@@ -76,7 +80,6 @@ fn collect_field_quotes(field: &syn::Field) -> Vec<proc_macro2::TokenStream> {
                 
 
                 // TODO: add support for following cases
-                // min and max value for integer and floating point numbers
                 // ip
                 // must match
                 // regex
@@ -121,14 +124,6 @@ fn collect_field_quotes(field: &syn::Field) -> Vec<proc_macro2::TokenStream> {
                     );
                     quotes.push(ts);
 
-                } else if meta.path.is_ident("email") {
-                    let ts = quote!(
-                        if !validate_email(self.#ident.as_str()) {
-                            errors.push(ValidationError::new(#field_name.to_string(), "value is not email".to_string()));
-                        }
-                    );
-
-                    quotes.push(ts);
                 } else if meta.path.is_ident("contains") {
                     let value = extract_lit_str(&meta)?;
                     let ts = quote!(
@@ -143,6 +138,38 @@ fn collect_field_quotes(field: &syn::Field) -> Vec<proc_macro2::TokenStream> {
                     let ts = quote!(
                         if validate_contains(self.#ident.as_str(), #value) {
                             errors.push(ValidationError::new(#field_name.to_string(), "value contains".to_string()));
+                        }
+                    );
+
+                    quotes.push(ts);
+                } else if meta.path.is_ident("email") {
+                    let ts = quote!(
+                        if !validate_email(self.#ident.as_str()) {
+                            errors.push(ValidationError::new(#field_name.to_string(), "value is not email".to_string()));
+                        }
+                    );
+
+                    quotes.push(ts);
+                } else if meta.path.is_ident("ip") {
+                    let ts = quote!(
+                        if !validate_ip(self.#ident.as_str()) {
+                            errors.push(ValidationError::new(#field_name.to_string(), "value is not valid ip address".to_string()));
+                        }
+                    );
+
+                    quotes.push(ts);
+                } else if meta.path.is_ident("ipv4") {
+                    let ts = quote!(
+                        if !validate_ip_v4(self.#ident.as_str()) {
+                            errors.push(ValidationError::new(#field_name.to_string(), "value is not valid ip address".to_string()));
+                        }
+                    );
+
+                    quotes.push(ts);
+                } else if meta.path.is_ident("ipv6") {
+                    let ts = quote!(
+                        if !validate_ip_v6(self.#ident.as_str()) {
+                            errors.push(ValidationError::new(#field_name.to_string(), "value is not valid ip address".to_string()));
                         }
                     );
 
